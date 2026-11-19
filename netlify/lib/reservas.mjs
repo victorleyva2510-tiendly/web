@@ -30,7 +30,8 @@ export function reservaPublica(r) {
   return { id: r.id, codigo: r.codigo, estado: estadoVisible(r), ingreso: r.ingreso, salida: r.salida, noches: r.noches, perros: r.perros, total: Number(r.total),
     detalle: r.detalle, primeraVez: r.primera_vez, perro: r.huespedes.map((h) => h.nombre).join(" y "), email: r.email,
     casa: { id: r.cuidador.id, nombrePublico: r.cuidador.nombre_publico, distrito: r.cuidador.distrito, horaReporte: r.cuidador.hora_reporte, direccion: pagada ? r.cuidador.direccion : null },
-    politica: r.politica, reembolsoPct: r.reembolso_pct, reembolsoMonto: r.reembolso_monto != null ? Number(r.reembolso_monto) : null };
+    politica: r.politica, reembolsoPct: r.reembolso_pct, reembolsoMonto: r.reembolso_monto != null ? Number(r.reembolso_monto) : null,
+    estrellas: r.estrellas ?? null, resena: r.resena || "", canceladaPor: r.cancelada_por || null };
 }
 // Confirma un pago consultándolo directo a Mercado Pago. Se puede llamar varias veces sin duplicar nada.
 export async function procesarPago(pagoId) {

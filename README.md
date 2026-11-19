@@ -1,10 +1,14 @@
-# Hospedoggy (entrega 1: web del cliente)
+# Hospedoggy
 
-Web pública de reservas de Hospedoggy: búsqueda de casas, cotización, ficha del perro, pago con Mercado Pago (Yape o tarjeta), confirmación por correo, cuenta con celular y cancelación con devolución automática.
+Plataforma de hospedaje para perros en Lima, con tres vistas:
+
+- `/` clientes: búsqueda de casas, cotización, ficha del perro, pago con Mercado Pago (Yape o tarjeta), confirmación, chat con el cuidador, reportes con fotos, reseñas y cancelación con devolución automática.
+- `/cuidador/` cuidadores: reportes con fotos, chat con datos de contacto ocultos, tarifas y temporadas, plazas por fechas, perfil revisado por Hospedoggy y pagos. Las cuentas las crea solo el administrador.
+- `/admin/` administrador: tablero, reservas, cuidadores y fotos, incidencias, pagos a cuidadores, correos enviados y configuración.
 
 ## Qué hay en cada carpeta
 
-- `public/`: la página que ven los clientes (HTML, estilos, código del navegador y fotos de las casas).
+- `public/`: las páginas (cliente, `cuidador/` y `admin/`), estilos y código del navegador. Las fotos se guardan en Supabase Storage.
 - `netlify/functions/`: el servidor. Calcula precios, separa cupos, crea el pago en Mercado Pago, recibe sus avisos y envía correos.
 - `netlify/lib/`: piezas compartidas por esas funciones.
 - `package.json`: le dice a Netlify que esto es un proyecto web. No instala nada.
@@ -25,5 +29,3 @@ Este repositorio es público, así que aquí no hay claves, tarifas de cuidadore
 | `SITIO_URL` | Opcional. Cuando tengas dominio: `https://hospedoggy.pe` |
 
 Mientras `EMAIL_REMITENTE` no esté puesto, Resend solo deja enviar a tu propio correo. Por eso todos los correos (cliente y cuidador) te llegan a ti con "[Reenviar a ...]" en el asunto.
-
-Publicado con clave de aviso de pagos.

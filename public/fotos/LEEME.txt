@@ -1,14 +1,5 @@
 FOTOS DE LAS CASAS
 
-Cada cuidador tiene su carpeta con el mismo nombre que su "id" en Supabase.
-Para IDEAL CAN la carpeta es: fotos/casa-campo-cieneguilla/
-
-Sube ahí estas 4 fotos con estos nombres exactos (en minúsculas, formato .jpg):
-  jardin.jpg       el jardín o espacio de juego
-  habitacion.jpg   donde duermen los perros
-  juego.jpg        perros jugando
-  descanso.jpg     perros descansando
-
-Recomendado: horizontales, de unos 1600 px de ancho y menos de 400 KB cada una.
-Mientras no subas una foto, la web muestra un dibujo de la casa en su lugar.
-Si quieres otros nombres o más fotos, cambia la columna "fotos" del cuidador en Supabase.
+Ya no se suben aquí. Entra a tu panel (/admin/), pestaña "Cuidadores y fotos",
+botón "Fotos" de cada casa y súbelas desde tu computadora o celular.
+Se guardan en Supabase Storage y aparecen al instante para los clientes.

@@ -30,7 +30,8 @@ function fechasIniciales() {
 }
 const ui = { busqueda: fechasIniciales(), reglas: { cancelacion: "siete", reembolsoPct: 70, maxPerros: 3, minutosParaPagar: 20 },
   lista: null, error: "", casa: null, casaId: null, primera: false, telValido: false, formReserva: null,
-  soloEstrella: false, soloJardin: false, orden: "recomendados", reserva: null, cancelacion: null, aviso: "", mias: null, visor: null };
+  soloEstrella: false, soloJardin: false, orden: "recomendados", reserva: null, cancelacion: null, aviso: "", mias: null, visor: null,
+  mensajes: [], reportes: [], puedeResenar: false, borradorChat: "" };
 
 const guardarLocal = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const leerLocal = (k, d) => { try { const t = localStorage.getItem(k); return t ? JSON.parse(t) : d; } catch (e) { return d; } };
@@ -138,7 +139,7 @@ function seccionMias() {
         return '<div class="tarjeta fila" style="justify-content:space-between"><div><b>' + esc(r.casa) + '</b><p class="tenue">' + esc(r.codigo) + " · " + fCorta(r.ingreso) + " → " + fCorta(r.salida) + " · " + plural(r.perros, "perro", "perros") + '</p></div><div class="fila" style="gap:8px"><span class="pastilla ' + t[1] + '">' + t[0] + "</span>" +
           (e ? '<button class="boton boton-chico" data-accion="abrir-reserva" data-id="' + esc(e.id) + '">Ver detalle</button>' : '<span class="tenue">El detalle está en tu correo de confirmación</span>') + "</div></div>";
       }).join("") + "</div>") +
-    '<p class="tenue" style="margin-top:10px">Por seguridad, el detalle de cada reserva (dirección, ficha y cancelación) solo se abre desde el enlace de tu correo o desde el celular donde reservaste. El chat con tu cuidador y los reportes llegan en la próxima versión; mientras tanto, el cuidador te escribe por WhatsApp.</p></section>';
+    '<p class="tenue" style="margin-top:10px">Por seguridad, el detalle de cada reserva (dirección, ficha y cancelación) solo se abre desde el enlace de tu correo o desde el celular donde reservaste. Ahí también están el chat con tu cuidador y los reportes con fotos.</p></section>';
 }
 function seccionesConfianza() {
   return '<section class="franja-cli" aria-label="Lo esencial"><div><b>Verificados</b><span>Visitamos cada casa y conocemos a cada cuidador antes de publicarlo.</span></div><div><b>Reportes con fotos</b><span>Te llegan fotos de cómo está, a la hora que indica cada cuidador.</span></div><div><b>Todo Lima</b><span>Lo recogemos y lo devolvemos en la puerta de tu casa.</span></div></section>' +
@@ -263,9 +264,75 @@ function vistaReserva() {
   return '<section class="confirmacion"><span class="icono-ok" aria-hidden="true">✓</span><p class="etiqueta">' + (r.estado === "pagada" ? "Pago aprobado" : r.estado === "en_curso" ? "Estadía en curso" : "Estadía completada") + "</p><h1>" + titulo + "</h1>" +
     '<p class="suave">Te enviamos la confirmación a <b>' + esc(r.email) + "</b>.</p>" + pase +
     (r.casa.direccion ? '<p><b>Dirección de la casa:</b> ' + esc(r.casa.direccion) + "</p>" : "") +
-    '<ol class="siguientes"><li><b>Ya le avisamos al cuidador</b> con toda la ficha de ' + esc(r.perro) + ".</li><li><b>El cuidador te escribe</b> para coordinar la hora de recojo.</li><li><b>Prepara su maleta:</b> vacunas, antiparasitario, su comida y su correa.</li><li><b>Te llegarán reportes con fotos</b> de cómo está, a las " + esc(r.casa.horaReporte) + ".</li></ol>" +
-    (cx && cx.cancelable ? '<p class="tenue">Puedes cancelar hasta el ' + fCorta(cx.limite) + " y te devolvemos el " + r.reembolsoPct + "% (" + soles(cx.monto) + ").</p>" : cx && politicaCancelacion() === "siete" && r.estado === "pagada" ? '<p class="tenue">' + esc(cx.motivo) + "</p>" : "") + acciones + "</section>";
+    '<ol class="siguientes"><li><b>Ya le avisamos al cuidador</b> con toda la ficha de ' + esc(r.perro) + ".</li><li><b>Coordinen el recojo</b> por el chat de abajo, sin compartir números.</li><li><b>Prepara su maleta:</b> vacunas, antiparasitario, su comida y su correa.</li><li><b>Te llegarán reportes con fotos</b> de cómo está, a las " + esc(r.casa.horaReporte) + ".</li></ol>" +
+    (cx && cx.cancelable ? '<p class="tenue">Puedes cancelar hasta el ' + fCorta(cx.limite) + " y te devolvemos el " + r.reembolsoPct + "% (" + soles(cx.monto) + ").</p>" : cx && politicaCancelacion() === "siete" && r.estado === "pagada" ? '<p class="tenue">' + esc(cx.motivo) + "</p>" : "") + acciones + "</section>" +
+    seccionEstadia(r);
 }
+function mensajeCliente(t) {
+  $("#capa").innerHTML = '<div class="velo" role="alertdialog" aria-modal="true"><div class="modal"><div class="modal-cuerpo"><p>' + esc(t) + '</p><button class="boton boton-sol" data-accion="cerrar-capa">Entendido</button></div></div></div>';
+  $("#capa .boton").focus();
+}
+/* ---------- Durante la estadía: reportes, reseña y chat con el cuidador ---------- */
+const hora = (ts) => { const d = new Date(ts); return d.toLocaleDateString("es-PE", { day: "numeric", month: "short", timeZone: "America/Lima" }) + " " + d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", timeZone: "America/Lima" }); };
+function htmlReporte(rep) {
+  const items = [["pis", "Hizo pis"], ["caca", "Hizo caca"], ["comida", "Comió"], ["agua", "Tomó agua"], ["juego", "Jugó"]];
+  return '<div class="reporte"><div class="fila" style="justify-content:space-between"><b>' + fCorta(rep.fecha) + '</b><span class="tenue">' + hora(rep.ts) + '</span></div><div class="iconos">' +
+    items.map(([k, n]) => '<span class="icono-rep ' + (rep[k] ? "si" : "no") + '">' + (rep[k] ? "✓ " : "") + n + "</span>").join("") + "</div>" +
+    (rep.nota ? "<p>" + esc(rep.nota) + "</p>" : "") + (rep.fotos && rep.fotos.length ? '<div class="fotos-rep">' + rep.fotos.map((f) => '<a href="' + esc(f) + '" target="_blank" rel="noopener"><img src="' + esc(f) + '" alt="Foto del reporte" loading="lazy"></a>').join("") + "</div>" : "") + "</div>";
+}
+function seccionEstadia(r) {
+  const activa = ["pagada", "en_curso", "completada"].includes(r.estado);
+  if (!activa) return "";
+  let html = '<section class="bloque" id="estadia" style="max-width:860px;margin-left:auto;margin-right:auto">';
+  if (r.estado !== "pagada") {
+    html += '<div class="tarjeta pila" style="margin-bottom:16px"><h2>Reportes de ' + esc(r.perro) + "</h2>" + (ui.reportes.length ? ui.reportes.map(htmlReporte).join("") : '<p class="tenue">El primer reporte te llegará a las ' + esc(r.casa.horaReporte) + ".</p>") + "</div>";
+  }
+  if (ui.puedeResenar) {
+    html += '<form class="tarjeta pila" id="form-resena" style="margin-bottom:16px"><h2>¿Cómo le fue a ' + esc(r.perro) + '?</h2><p class="tenue">Tu reseña ayuda a otros dueños a elegir. Solo la pueden dejar quienes se hospedaron.</p><div class="chips" role="radiogroup" aria-label="Calificación">' +
+      [5, 4, 3, 2, 1].map((n) => '<label class="chip"><input type="radio" name="estrellas" value="' + n + '"' + (n === 5 ? " checked" : "") + "><span>" + "★".repeat(n) + "</span></label>").join("") +
+      '</div><div class="campo"><label for="resena-texto">Cuéntale a otros dueños</label><textarea id="resena-texto" maxlength="1000"></textarea></div><p class="error" id="error-resena" role="alert"></p><div><button class="boton boton-sol" type="submit">Publicar reseña</button></div></form>';
+  } else if (r.estrellas) {
+    html += '<div class="tarjeta pila" style="margin-bottom:16px"><h3>Tu reseña</h3><p>' + "★".repeat(r.estrellas) + (r.resena ? " · " + esc(r.resena) : "") + "</p></div>";
+  }
+  if (r.estado !== "completada") {
+    const rapidas = ["¿A qué hora lo recogen?", "¿Cómo pasó la noche?", "¿Me envías una foto de cómo está?"];
+    html += '<div class="tarjeta" style="padding:0;overflow:hidden"><div class="conv-cabeza fila" style="justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--linea)"><div><b>Chat con ' + esc(r.casa.nombrePublico) + '</b> <span class="tenue">· ' + fCorta(r.ingreso) + " → " + fCorta(r.salida) + '</span></div><div class="fila" style="gap:6px"><button class="boton boton-chico" data-accion="actualizar-chat">Actualizar</button><button class="boton boton-chico" data-accion="reportar-cliente">Reportar a Hospedoggy</button></div></div>' +
+      '<div class="burbujas" style="max-height:420px;overflow-y:auto"><div class="burbuja sistema">Reserva ' + esc(r.codigo) + " confirmada. Este chat te conecta con tu cuidador. Por seguridad, su número se mantiene privado. Reserva y paga siempre por Hospedoggy: lo que se acuerde por fuera no tiene respaldo.<small>Hospedoggy</small></div>" +
+      ui.mensajes.map((m) => '<div class="burbuja ' + (m.de === "cliente" ? "mia" : m.de === "sistema" ? "sistema" : "") + '">' + esc(m.texto) + "<small>" + hora(m.ts) + (m.oculto ? " · Hospedoggy ocultó un dato de contacto" : "") + "</small></div>").join("") + "</div>" +
+      '<div class="respuestas-rapidas">' + rapidas.map((t) => '<button type="button" class="boton boton-chico" data-accion="rapida-cliente" data-texto="' + esc(t) + '">' + esc(t) + "</button>").join("") + "</div>" +
+      '<form class="redactar" id="form-chat"><label class="oculto" for="msg-cliente">Mensaje</label><input type="text" id="msg-cliente" placeholder="Escribe un mensaje" value="' + esc(ui.borradorChat || "") + '" autocomplete="off" maxlength="1500"><button class="boton boton-tinta" type="submit">Enviar</button></form></div>';
+  }
+  return html + "</section>";
+}
+function abrirReporteCliente() {
+  $("#capa").innerHTML = '<div class="velo" role="dialog" aria-modal="true" aria-labelledby="rep-titulo"><form class="modal" id="form-incidencia"><div class="modal-cuerpo"><h3 id="rep-titulo">Reportar a Hospedoggy</h3>' +
+    '<div class="campo"><label for="inc-motivo">Motivo</label><select id="inc-motivo"><option>Me piden pagar por fuera de Hospedoggy</option><option>Comportamiento inadecuado</option><option>Problema con la salud o el cuidado de la mascota</option><option>Problema con el recojo o el regreso</option><option>Otro</option></select></div>' +
+    '<div class="campo"><label for="inc-texto">Cuéntanos qué pasó</label><textarea id="inc-texto" maxlength="2000"></textarea></div><p class="tenue">Lo revisa el equipo de Hospedoggy. El cuidador no ve tu reporte.</p>' +
+    '<p class="error" id="error-incidencia" role="alert"></p><div class="fila"><button type="button" class="boton" data-accion="cerrar-capa">Cancelar</button><button class="boton boton-sol" type="submit" style="flex:1">Enviar reporte</button></div></div></form></div>';
+  $("#inc-motivo").focus();
+}
+async function accionReserva(cuerpo) {
+  const d = await api("/api/reserva", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ r: ui.reserva.id, t: ui.token }, cuerpo)) });
+  ui.reserva = d.reserva; ui.cancelacion = d.cancelacion; ui.mensajes = d.mensajes; ui.reportes = d.reportes; ui.puedeResenar = d.puedeResenar;
+  pintarEstadia();
+  return d;
+}
+function pintarEstadia() {
+  const e = $("#estadia"); if (!e || !ui.reserva) return;
+  const foco = document.activeElement && document.activeElement.id === "msg-cliente";
+  e.outerHTML = seccionEstadia(ui.reserva);
+  const b = $("#estadia .burbujas"); if (b) b.scrollTop = b.scrollHeight;
+  if (foco) { const m = $("#msg-cliente"); if (m) { m.focus(); m.setSelectionRange(m.value.length, m.value.length); } }
+}
+async function refrescarReserva() {
+  if (!ui.reserva || ui.vista !== "reserva" || document.hidden) return;
+  try {
+    const d = await api("/api/reserva?" + qs({ r: ui.reserva.id, t: ui.token }));
+    ui.mensajes = d.mensajes; ui.reportes = d.reportes; ui.puedeResenar = d.puedeResenar;
+    pintarEstadia();
+  } catch (e) {}
+}
+setInterval(refrescarReserva, 30000);
 function pedirCancelar() {
   const cx = ui.cancelacion, r = ui.reserva;
   $("#capa").innerHTML = '<div class="velo" role="dialog" aria-modal="true" aria-labelledby="can-titulo"><div class="modal"><div class="modal-cuerpo"><h3 id="can-titulo">¿Cancelar la reserva ' + esc(r.codigo) + "?</h3>" +
@@ -307,6 +374,7 @@ function render() {
     '<section class="bloque" id="resultados" tabindex="-1"><div id="zona-resultados">' + zonaResultados() + "</div></section>" + seccionMias() + seccionesConfianza();
   app.innerHTML = html + pieCliente();
   if (ui.aviso) { $("#aviso-global").textContent = ui.aviso; ui.aviso = ""; }
+  const b = $("#estadia .burbujas"); if (b) b.scrollTop = b.scrollHeight;
 }
 function pintarBusqueda() {
   const pl = $("#pase-lado"), zr = $("#zona-resultados");
@@ -354,12 +422,31 @@ async function abrirReserva(id, token, pagoId) {
       const d = await api("/api/reserva?" + qs({ r: id, t: token, payment_id: pagoId }));
       if (d.reserva.estado === "pendiente_pago" && pagoId && !/rejected|failure|null/.test(new URLSearchParams(location.search).get("status") || "") && intentos++ < 6) { setTimeout(consultar, 3000); return; }
       ui.reserva = d.reserva; ui.cancelacion = d.cancelacion; ui.token = token;
+      ui.mensajes = d.mensajes || []; ui.reportes = d.reportes || []; ui.puedeResenar = !!d.puedeResenar;
       guardarEnlace({ id, token, codigo: d.reserva.codigo });
       render(); cargarMias();
     } catch (e) { ui.vista = "inicio"; ui.aviso = e.message; history.replaceState(null, "", location.pathname); render(); buscar(); }
   };
   consultar();
 }
+
+/* ---------- De dónde llegó el cliente (para el tablero) ---------- */
+function canalDeOrigen() {
+  const guardado = leerLocal("hospedoggy-canal", null);
+  if (guardado) return guardado;
+  const p = new URLSearchParams(location.search);
+  const nombre = (t) => /facebook|^fb$|meta/.test(t) ? "Facebook" : /instagram|^ig$/.test(t) ? "Instagram" : /google/.test(t) ? "Google" : /tiktok/.test(t) ? "TikTok" : /whatsapp|^wa$/.test(t) ? "WhatsApp" : "";
+  const u = (p.get("utm_source") || p.get("ref") || "").toLowerCase().trim();
+  if (u) return nombre(u) || u.slice(0, 30);
+  if (p.get("fbclid")) return "Facebook";
+  if (p.get("gclid")) return "Google";
+  let host = "";
+  try { host = document.referrer ? new URL(document.referrer).hostname.toLowerCase() : ""; } catch (e) {}
+  if (!host || host === location.hostname) return "Directo";
+  return nombre(host.replace(/^www\./, "").split(".")[0]) || "Otra página";
+}
+// Se guarda la primera vez que llega, así no se pierde si reserva días después
+(function recordarCanal() { if (!leerLocal("hospedoggy-canal", null)) { const c = canalDeOrigen(); if (c !== "Directo") guardarLocal("hospedoggy-canal", c); } })();
 
 /* ---------- Leer y validar la ficha (el servidor vuelve a validar todo) ---------- */
 function leerFormReserva() {
@@ -404,7 +491,7 @@ async function pagar(boton) {
   try {
     const b = ui.busqueda;
     const r = await api("/api/reservas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      cuidador: ui.casaId, ingreso: b.ingreso, salida: b.salida, perros: b.perros, acepto: d.acepto,
+      cuidador: ui.casaId, ingreso: b.ingreso, salida: b.salida, perros: b.perros, acepto: d.acepto, canal: canalDeOrigen(),
       cliente: { nombre: d.nombre, telefono: d.telefono, email: d.email, direccion: d.direccion, referencia: d.referencia }, huespedes: d.huespedes.slice(0, b.perros) }) });
     guardarEnlace({ id: r.id, token: r.token, codigo: r.codigo });
     const cl = clienteActual();
@@ -450,6 +537,9 @@ document.addEventListener("click", async (e) => {
   if (a === "nueva-busqueda") { history.pushState(null, "", location.pathname); ui.vista = "inicio"; ui.reserva = null; render(); window.scrollTo(0, 0); buscar(); }
   if (a === "reintentar-pago") { history.pushState(null, "", location.pathname); ui.busqueda = Object.assign({}, ui.busqueda, { ingreso: ui.reserva.ingreso, salida: ui.reserva.salida, perros: ui.reserva.perros }); ui.casaId = el.dataset.id; ui.vista = "casa"; ui.casa = null; ui.reserva = null; render(); cargarCasa(false); }
   if (a === "pedir-cancelar") pedirCancelar();
+  if (a === "actualizar-chat") refrescarReserva();
+  if (a === "reportar-cliente") abrirReporteCliente();
+  if (a === "rapida-cliente") { const m = $("#msg-cliente"); m.value = el.dataset.texto; ui.borradorChat = m.value; m.focus(); }
   if (a === "confirmar-cancelar") {
     el.disabled = true; el.textContent = "Cancelando…";
     try {
@@ -481,6 +571,7 @@ document.addEventListener("change", (e) => {
 });
 let esperaTel;
 document.addEventListener("input", (e) => {
+  if (e.target.id === "msg-cliente") ui.borradorChat = e.target.value;
   if (e.target.id === "r-telefono" && ui.casa) {
     clearTimeout(esperaTel);
     const tel = ultimos9(e.target.value);
@@ -490,6 +581,24 @@ document.addEventListener("input", (e) => {
 document.addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target;
+  if (f.id === "form-chat") {
+    const m = $("#msg-cliente"); const txt = m.value.trim(); if (!txt) return;
+    const btn = $("button", f); btn.disabled = true;
+    ui.borradorChat = "";
+    try { await accionReserva({ accion: "mensaje", texto: txt }); const n = $("#msg-cliente"); if (n) n.focus(); }
+    catch (err) { ui.borradorChat = txt; btn.disabled = false; mensajeCliente(err.message); }
+    return;
+  }
+  if (f.id === "form-resena") {
+    try { await accionReserva({ accion: "resena", estrellas: Number(($("input[name=estrellas]:checked", f) || {}).value), texto: $("#resena-texto").value.trim() }); ui.aviso = ""; }
+    catch (err) { $("#error-resena").textContent = err.message; }
+    return;
+  }
+  if (f.id === "form-incidencia") {
+    try { await accionReserva({ accion: "incidencia", motivo: $("#inc-motivo").value, texto: $("#inc-texto").value.trim() }); mensajeCliente("Gracias. El equipo de Hospedoggy revisa tu reporte y te escribe."); }
+    catch (err) { $("#error-incidencia").textContent = err.message; }
+    return;
+  }
   if (f.id === "form-busqueda") {
     leerBusqueda(); ui.vista = "inicio"; ui.casa = null;
     if (!$("#zona-resultados")) render();

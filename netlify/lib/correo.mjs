@@ -1,3 +1,4 @@
+import { rpc } from "./db.mjs";
 import { env, sitio } from "./entorno.mjs";
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -23,9 +24,12 @@ export async function enviarCorreo({ para, asunto, html }) {
       body: JSON.stringify({ from: de, to: destino, subject: asunto, html })
     });
     if (!res.ok) console.error("Error al enviar correo", res.status, await res.text());
+    await registrar(destino.join(", "), asunto, res.ok);
     return { ok: res.ok };
-  } catch (e) { console.error("Error al enviar correo", e.message); return { ok: false }; }
+  } catch (e) { console.error("Error al enviar correo", e.message); await registrar(destino.join(", "), asunto, false); return { ok: false }; }
 }
+// Registro para la pestaña "Avisos enviados" del panel (si falla, el correo igual se envió)
+async function registrar(para, asunto, ok) { try { await rpc("api_aviso", { p_para: para, p_asunto: asunto, p_ok: ok }); } catch (e) {} }
 function marco(titulo, cuerpo) {
   return `<!doctype html><html lang="es"><body style="margin:0;background:#f7f4ec;font-family:Arial,Helvetica,sans-serif;color:#1b2a4a">
 <div style="max-width:560px;margin:0 auto;padding:24px"><div style="font-weight:800;font-size:22px;margin-bottom:16px">Hospedoggy</div>
@@ -59,7 +63,7 @@ export function correoCliente(r) {
 ${tabla([fila("Código", r.codigo), fila("Casa", r.cuidador.nombre_publico), fila("Dirección", r.cuidador.direccion || "Te la enviamos antes del ingreso"),
   fila("Ingreso", fechaCorta(r.ingreso)), fila("Salida", fechaCorta(r.salida)), fila("Recojo en", r.cliente.direccion)])}
 ${desglose(r)}
-<p>El cuidador ya recibió la ficha de ${esc(nombres(r))}. Te llegarán reportes con fotos de cómo está, a las ${esc(r.cuidador.hora_reporte)}.</p>
+<p>El cuidador ya recibió la ficha de ${esc(nombres(r))}. Coordinen la hora de recojo por el chat de tu reserva, sin compartir números. Te llegarán reportes con fotos de cómo está, a las ${esc(r.cuidador.hora_reporte)}.</p>
 <p style="font-size:14px"><b>Prepara su maleta:</b> cartilla de vacunas al día, antiparasitario vigente, su comida para todos los días, indicaciones por escrito si toma medicamentos y su correa.</p>
 <p><a href="${cancelar}" style="display:inline-block;background:#f5b82e;color:#1b2a4a;padding:12px 18px;border-radius:999px;font-weight:700;text-decoration:none">Ver mi reserva</a></p>
 ${condicion}`) };
@@ -71,7 +75,8 @@ ${tabla([fila("Código", r.codigo), fila("Ingreso", fechaCorta(r.ingreso)), fila
 <h2 style="font-size:17px;margin:16px 0 4px">Datos del dueño</h2>
 ${tabla([fila("Nombre y apellido", r.cliente.nombre), fila("Teléfono", "+51 " + r.cliente.telefono), fila("Dirección", r.cliente.direccion), fila("Referencia", r.cliente.referencia)])}
 <h2 style="font-size:17px;margin:16px 0 4px">Datos del huésped</h2>${fichaPerros(r)}
-<p style="font-size:13px;color:#4b5670">Recuerda enviar los reportes con fotos a las ${esc(r.cuidador.hora_reporte)}. Todo acuerdo y cobro con este cliente pasa por Hospedoggy, según la cláusula de no captación.</p>`) };
+<p>Escríbele al dueño desde el chat de tu panel para coordinar el recojo: <a href="${sitio()}/cuidador/">${sitio()}/cuidador/</a></p>
+<p style="font-size:13px;color:#4b5670">Recuerda enviar los reportes con fotos a las ${esc(r.cuidador.hora_reporte)} desde tu panel. Todo acuerdo y cobro con este cliente pasa por Hospedoggy, según la cláusula de no captación.</p>`) };
 }
 export function correoAdmin(asunto, r, extra = "") {
   return { para: env("EMAIL_ADMIN"), asunto: asunto + " " + r.codigo, html: marco(asunto, tabla([
@@ -86,4 +91,33 @@ export function correoCancelacion(r, monto, pendiente) {
 export function correoSinCupo(r) {
   return { para: r.email, asunto: `No pudimos confirmar tu reserva ${r.codigo}`, html: marco("Te devolvimos el pago completo", `<p>Hola ${esc(r.cliente.nombre.split(" ")[0])}, el tiempo para pagar venció y en ese momento otra persona tomó la última plaza de esa casa.</p>
 <p>Por eso te devolvimos el 100% (${soles(r.total)}) al mismo medio de pago. <a href="${sitio()}">Busca otra casa con cupo</a>.</p>`) };
+}
+
+const boton = (url, texto) => `<p><a href="${url}" style="display:inline-block;background:#f5b82e;color:#1b2a4a;padding:12px 18px;border-radius:999px;font-weight:700;text-decoration:none">${esc(texto)}</a></p>`;
+export const enlaceReserva = (r) => `${sitio()}/?reserva=${r.id}&t=${r.token}`;
+// Chat: aviso a la otra parte (máximo uno cada 15 minutos por reserva)
+export function correoMensajeCliente(r, texto) {
+  return { para: r.email, asunto: `Nuevo mensaje sobre ${nombres(r)} (${r.codigo})`, html: marco("Te escribió tu cuidador", `<p>${esc(r.cuidador.nombre_publico)} te escribió:</p>
+<blockquote style="margin:0 0 12px;padding:10px 14px;background:#f7f4ec;border-radius:12px">${esc(texto)}</blockquote>${boton(enlaceReserva(r), "Responder en el chat")}`) };
+}
+export function correoMensajeCuidador(r, texto) {
+  return { para: r.cuidador.email, asunto: `Mensaje del dueño de ${nombres(r)} (${r.codigo})`, html: marco("Te escribió un cliente", `<p>${esc(r.cliente.nombre.split(" ")[0])}, dueño de ${esc(nombres(r))}, te escribió:</p>
+<blockquote style="margin:0 0 12px;padding:10px 14px;background:#f7f4ec;border-radius:12px">${esc(texto)}</blockquote>${boton(sitio() + "/cuidador/", "Responder desde mi panel")}`) };
+}
+export function correoReporte(r, rep) {
+  return { para: r.email, asunto: `Llegó el reporte de hoy de ${nombres(r)} 🐾`, html: marco(`Así le fue hoy a ${nombres(r)}`, `
+${rep.nota ? `<p>${esc(rep.nota)}</p>` : ""}${(rep.fotos || []).slice(0, 2).map((f) => `<img src="${f}" alt="Foto del reporte" style="width:100%;border-radius:12px;margin:6px 0">`).join("")}
+${boton(enlaceReserva(r), "Ver el reporte completo")}`) };
+}
+export function correoResena(r) {
+  return { para: r.email, asunto: `¿Cómo le fue a ${nombres(r)}?`, html: marco(`¿Cómo le fue a ${nombres(r)}?`, `<p>Hola ${esc(r.cliente.nombre.split(" ")[0])}, gracias por confiar en Hospedoggy. Tu opinión ayuda a otros dueños a elegir y a que los mejores cuidadores sigan en la red.</p>
+${boton(enlaceReserva(r), "Dejar mi reseña")}`) };
+}
+export function correoTransferencia(c, monto, codigos, operacion) {
+  return { para: c.email, asunto: `Te transferimos ${soles(monto)}`, html: marco("Te transferimos tu pago", `<p>Hola, Hospedoggy te transfirió <b>${soles(monto)}</b> por ${esc(codigos.join(", "))}${operacion ? " (operación " + esc(operacion) + ")" : ""}.</p>
+<p>Puedes ver el detalle en la pestaña Pagos de <a href="${sitio()}/cuidador/">tu panel</a>.</p>`) };
+}
+export function correoCanceladaPorHospedoggy(r) {
+  return { para: r.email, asunto: `Tu reserva ${r.codigo} fue cancelada`, html: marco("Tuvimos que cancelar tu reserva", `<p>Hola ${esc(r.cliente.nombre.split(" ")[0])}, por un motivo de fuerza mayor tuvimos que cancelar tu reserva ${esc(r.codigo)} del ${fechaCorta(r.ingreso)}. Lo sentimos mucho.</p>
+<p>Te devolvemos el <b>100% (${soles(r.total)})</b> al mismo medio con el que pagaste. Te escribiremos para ayudarte a encontrar otra casa.</p>`) };
 }

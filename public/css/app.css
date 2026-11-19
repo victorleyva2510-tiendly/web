@@ -479,3 +479,8 @@ select.orden { width: auto; min-height: 40px; border-radius: 999px; padding: 0 1
 @media (prefers-reduced-motion: reduce) { .cargando-tarjeta, .cargando-circulo { animation: none; } }
 @media (min-width: 641px) { .galeria-cliente button:nth-child(4):last-child { grid-column: span 2; } }
 .visor-foto .foto-vacia { position: static; width: min(520px, 80vw); aspect-ratio: 4/3; border-radius: 12px; }
+
+/* ---------- Paneles ---------- */
+body.ocupado, body.ocupado * { cursor: progress; }
+body.ocupado .boton { opacity: .7; pointer-events: none; }
+.fotos-rep a { display: block; }

@@ -19,7 +19,8 @@ export default async (req) => {
     const q = cotizar(c, cfg, b.ingreso, b.salida, primera, v.perros);
     const creada = await rpc("api_crear_reserva", { p: {
       cuidador_id: c.id, ingreso: b.ingreso, salida: b.salida, noches: q.noches, perros: v.perros, cliente: v.cliente, huespedes: v.huespedes,
-      telefono: v.cliente.telefono, email: v.cliente.email, primera_vez: primera, total: q.total, costo: q.costo, detalle: cotizacionPublica(q) } });
+      telefono: v.cliente.telefono, email: v.cliente.email, primera_vez: primera, total: q.total, costo: q.costo, detalle: cotizacionPublica(q),
+      canal: String(b.canal || "Directo").replace(/[^\p{L}\p{N} .-]/gu, "").slice(0, 40) } });
     if (!creada.ok) {
       if (creada.error === "sin_cupo") return json({ error: "Otra persona acaba de tomar la última plaza en esas fechas. Prueba otras fechas u otra casa." }, 409);
       return json({ error: "Esta casa ya no está disponible." }, 409);
