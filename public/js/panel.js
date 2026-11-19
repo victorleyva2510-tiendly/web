@@ -349,8 +349,10 @@ function cuidadorPerfil(c) {
     '<p class="tenue">Los clientes ven esta hora antes de reservar, así que cúmplela todos los días.</p></div>' +
     '<div class="campo"><span class="rotulo">Tamaños que aceptas</span><div class="chips">' + ["pequeño", "mediano", "grande"].map((t) => '<label class="chip"><input type="checkbox" name="f-tamano" value="' + t + '"' + (c.tamanos.includes(t) ? " checked" : "") + "><span>" + t + "</span></label>").join("") + "</div></div>" +
     '<div class="rejilla-2">' + casilla("f-jardin", casa.jardin, "Tiene jardín cercado") + casilla("f-residentes", casa.perrosResidentes, "Tengo perros propios") + casilla("f-ninos", casa.ninos, "Hay niños en casa") + casilla("f-todoeldia", casa.todoElDia, "Alguien está en casa todo el día") + casilla("f-fuma", casa.fumadores, "Se fuma en casa") + "</div>" +
-    '<hr style="border:0;border-top:1px solid var(--linea);width:100%"><h3>Dónde te avisamos</h3>' + campoTexto("f-whatsapp", "WhatsApp de contacto con Hospedoggy", c.whatsapp ? "+" + c.whatsapp : "", "tel", "+51 9XX XXX XXX") +
-    '<p class="tenue">Solo lo usa Hospedoggy. Los avisos de reservas te llegan al correo ' + esc(c.email || "que registró Hospedoggy") + '. Los clientes nunca ven tu número: hablan contigo por el chat del panel.</p>' +
+    '<hr style="border:0;border-top:1px solid var(--linea);width:100%"><h3>Dónde te avisamos</h3>' + campoTexto("f-email", "Correo para tus avisos (reservas, chat y pagos)", c.email || "", "email", "nombre@gmail.com") +
+    '<p class="tenue">Usa un correo que revises todos los días. Al cambiarlo te mandamos un correo de prueba para confirmar que te llega.</p>' +
+    campoTexto("f-whatsapp", "WhatsApp de contacto con Hospedoggy", c.whatsapp ? "+" + c.whatsapp : "", "tel", "+51 9XX XXX XXX") +
+    '<p class="tenue">Tu correo y tu WhatsApp solo los usa Hospedoggy. Los clientes nunca los ven: hablan contigo por el chat del panel.</p>' +
     '<p class="error" id="error-perfil" role="alert"></p><div><button class="boton boton-sol" type="submit">Guardar perfil</button></div></form>';
 }
 function cuidadorPagos(c, mias) {
@@ -810,7 +812,7 @@ document.addEventListener("submit", async (e) => {
     return;
   }
   if (f.id === "form-perfil") {
-    await accion({ accion: "perfil", tamanos: $$("input[name='f-tamano']:checked").map((x) => x.value), whatsapp: $("#f-whatsapp").value, descripcion: $("#f-descripcion").value.trim(),
+    await accion({ accion: "perfil", tamanos: $$("input[name='f-tamano']:checked").map((x) => x.value), whatsapp: $("#f-whatsapp").value, email: $("#f-email").value.trim(), descripcion: $("#f-descripcion").value.trim(),
       tipo: $("#f-tipo").value, rasgo: $("#f-rasgo").value, horaReporte: $("#f-hora").value, jardin: $("#f-jardin").checked, perrosResidentes: $("#f-residentes").checked,
       ninos: $("#f-ninos").checked, todoElDia: $("#f-todoeldia").checked, fumadores: $("#f-fuma").checked }, "#error-perfil");
     return;

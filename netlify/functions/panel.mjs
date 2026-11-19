@@ -166,11 +166,19 @@ async function accionCuidador(s, b) {
     if (!TIPOS.includes(b.tipo) || !RASGOS.includes(b.rasgo || "") || !HORAS_REPORTE.includes(b.horaReporte)) falla("Revisa las opciones del perfil.");
     const prob = problemasTexto(desc, c.nombre_interno);
     if (prob.length) falla("La descripción " + prob.join(", ") + ". Quítalo para poder enviarla a revisión.");
+    const email = b.email === undefined ? c.email || "" : recortar(b.email, 120).trim().toLowerCase();
+    if (b.email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) falla("Escribe un correo válido para recibir los avisos de reservas, por ejemplo nombre@gmail.com.");
+    const nuevoCorreo = email !== (c.email || "");
     const cambio = desc !== c.descripcion;
     await rpc("api_guardar_perfil", { p_id: s.id, p: { tamanos: tam, rasgo: b.rasgo || "", hora_reporte: b.horaReporte, tipo_vivienda: b.tipo,
       jardin: !!b.jardin, perros_residentes: !!b.perrosResidentes, ninos: !!b.ninos, todo_el_dia: !!b.todoElDia, fumadores: !!b.fumadores, whatsapp: wa,
       descripcion_pendiente: cambio ? { texto: desc, ts: new Date().toISOString() } : null } });
-    return { aviso: cambio ? "Perfil guardado. La descripción nueva se publica cuando Hospedoggy la apruebe." : "Perfil guardado." };
+    if (nuevoCorreo) {
+      await rpc("api_admin_cuidador", { p_id: s.id, p: { email } });
+      await enviarCorreo({ para: email, asunto: "Este es tu correo de avisos en Hospedoggy",
+        html: "<p>Hola, " + esc(c.nombre_interno || "") + ". Desde ahora los avisos de reservas, mensajes del chat y pagos de Hospedoggy te llegan a este correo.</p><p>Si no hiciste este cambio, entra a tu panel y corrígelo, o escríbenos a ventas@hospedoggy.com.</p>" });
+    }
+    return { aviso: (cambio ? "Perfil guardado. La descripción nueva se publica cuando Hospedoggy la apruebe." : "Perfil guardado.") + (nuevoCorreo ? " Te enviamos un correo de prueba a " + email + ": revisa que te haya llegado (mira también en Spam)." : "") };
   }
   if (a === "pago") {
     const metodo = b.metodo;
