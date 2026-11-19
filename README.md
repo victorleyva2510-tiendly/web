@@ -25,3 +25,5 @@ Este repositorio es público, así que aquí no hay claves, tarifas de cuidadore
 | `SITIO_URL` | Opcional. Cuando tengas dominio: `https://hospedoggy.pe` |
 
 Mientras `EMAIL_REMITENTE` no esté puesto, Resend solo deja enviar a tu propio correo. Por eso todos los correos (cliente y cuidador) te llegan a ti con "[Reenviar a ...]" en el asunto.
+
+Publicado con clave de aviso de pagos.
