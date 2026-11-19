@@ -29,19 +29,18 @@ export default async (req) => {
     const vuelta = `${base}/?reserva=${creada.id}&t=${creada.token}`;
     const [nombre, ...apellidos] = v.cliente.nombre.split(" ");
     const pref = await crearPreferencia({
-      items: [{ id: creada.codigo, title: `Hospedaje ${q.noches} noche${q.noches > 1 ? "s" : ""}: ${c.nombre_publico}`, quantity: 1, currency_id: "PEN", unit_price: q.total }],
+      items: [{ id: creada.codigo, title: `Hospedaje ${q.noches} noche${q.noches > 1 ? "s" : ""}: ${c.nombre_publico}`, description: `Hospedaje para ${v.perros} perro${v.perros > 1 ? "s" : ""} del ${b.ingreso} al ${b.salida} en ${c.distrito}`, category_id: "services", quantity: 1, currency_id: "PEN", unit_price: q.total }],
       payer: { name: nombre, surname: apellidos.join(" "), email: v.cliente.email, phone: { area_code: "51", number: v.cliente.telefono } },
       external_reference: creada.id,
       back_urls: { success: vuelta, failure: vuelta, pending: vuelta },
       auto_return: "approved",
       notification_url: `${base}/api/webhook-mp`,
       statement_descriptor: "HOSPEDOGGY",
-      binary_mode: true,
       expires: true,
       expiration_date_from: new Date().toISOString(),
       expiration_date_to: new Date(creada.expira_en).toISOString(),
       payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "atm" }], installments: 1 }
-    }, "pref-" + creada.id);
+    }, "pref-" + creada.id, /^[\w:.-]{8,200}$/.test(String(b.dispositivo || "")) ? String(b.dispositivo) : "");
     await rpc("api_guardar_preferencia", { p_id: creada.id, p_preferencia: pref.id });
     return json({ ok: true, id: creada.id, token: creada.token, codigo: creada.codigo, total: q.total, primera, pagarEn: pref.init_point });
   } catch (e) {

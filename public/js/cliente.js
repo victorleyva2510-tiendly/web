@@ -280,6 +280,7 @@ function vistaReserva() {
   const pase = '<div class="pase"><div class="pase-banda"><b>Hospedoggy</b><span>' + esc(r.codigo) + '</span></div><div class="pase-cuerpo"><div class="pase-ruta"><div><div class="codigo">CASA</div><div class="lugar">Tu casa</div></div><svg viewBox="0 0 44 28" aria-hidden="true"><path d="M2 14h36m-8-8 8 8-8 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="hacia"><div class="codigo">' + esc(r.casa.distrito.slice(0, 4).toUpperCase()) + '</div><div class="lugar">' + esc(r.casa.nombrePublico) + "</div></div></div>" +
     '<div class="campos"><div class="campo"><small>Huésped</small><strong>' + esc(r.perro.toUpperCase()) + '</strong></div><div class="campo"><small>Ingreso</small><strong>' + corto(r.ingreso) + '</strong></div><div class="campo"><small>Salida</small><strong>' + corto(r.salida) + '</strong></div><div class="campo"><small>Noches</small><strong>' + r.noches + '</strong></div><div class="campo"><small>Pagado</small><strong>' + soles(r.total) + '</strong></div><div class="campo"><small>Recojo</small><strong>' + (r.detalle.regalo ? "GRATIS" : "INCLUIDO") + "</strong></div></div></div></div>";
   const acciones = '<div class="fila" style="justify-content:center">' + (cx && cx.cancelable ? '<button class="boton" data-accion="pedir-cancelar">Cancelar reserva</button>' : "") + '<button class="boton boton-sol" data-accion="nueva-busqueda">Hacer otra reserva</button></div>';
+  if ((r.estado === "pendiente_pago" || r.estado === "expirada") && ui.pagoEnRevision) return '<section class="confirmacion"><div class="cargando-circulo"></div><h1>Tu pago está en revisión</h1><p class="suave">Mercado Pago está revisando tu pago, algo que a veces hace por seguridad. Suele tardar unos minutos. Apenas lo apruebe te llega la confirmación a tu correo. Si no lo aprueba, no se te cobra nada.</p><button class="boton boton-sol" data-accion="nueva-busqueda">Volver al inicio</button></section>';
   if (r.estado === "pendiente_pago" || (r.estado === "expirada" && ui.pagoRechazado)) return '<section class="confirmacion"><span class="icono-ok mal" aria-hidden="true">!</span><h1>El pago no se completó</h1><p class="suave">No se hizo ningún cobro. Puedes intentarlo otra vez con Yape u otra tarjeta.</p><button class="boton boton-sol" data-accion="reintentar-pago" data-id="' + esc(r.casa.id) + '">Volver a la casa e intentar de nuevo</button></section>';
   if (r.estado === "cancelada") return '<section class="confirmacion"><span class="icono-ok mal" aria-hidden="true">×</span><p class="etiqueta">Reserva cancelada</p><h1>Cancelamos tu reserva</h1><p class="suave">Te devolvemos ' + soles(r.reembolsoMonto || 0) + " al mismo medio con el que pagaste. Según tu banco o Yape, puede tardar unos días en verse.</p>" + pase + acciones + "</section>";
   if (r.estado === "reembolsada_sin_cupo") return '<section class="confirmacion"><span class="icono-ok mal" aria-hidden="true">!</span><h1>Te devolvimos el pago</h1><p class="suave">El tiempo para pagar venció y en ese momento otra persona tomó la última plaza. Te devolvimos el 100%.</p><button class="boton boton-sol" data-accion="nueva-busqueda">Buscar otra casa</button></section>';
@@ -439,7 +440,9 @@ async function cargarCasa(soloCotizacion) {
 }
 async function abrirReserva(id, token, pagoId) {
   ui.vista = "reserva"; ui.reserva = null; ui.cancelacion = null; render(); window.scrollTo(0, 0);
-  ui.pagoRechazado = !!pagoId && /rejected|failure/.test(new URLSearchParams(location.search).get("status") || "");
+  const estadoMp = new URLSearchParams(location.search).get("status") || new URLSearchParams(location.search).get("collection_status") || "";
+  ui.pagoRechazado = !!pagoId && /rejected|failure/.test(estadoMp);
+  ui.pagoEnRevision = !!pagoId && /in_process|pending/.test(estadoMp);
   let intentos = 0;
   const consultar = async () => {
     try {
@@ -515,7 +518,7 @@ async function pagar(boton) {
   try {
     const b = ui.busqueda;
     const r = await api("/api/reservas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-      cuidador: ui.casaId, ingreso: b.ingreso, salida: b.salida, perros: b.perros, acepto: d.acepto, canal: canalDeOrigen(),
+      cuidador: ui.casaId, ingreso: b.ingreso, salida: b.salida, perros: b.perros, acepto: d.acepto, canal: canalDeOrigen(), dispositivo: window.MP_DEVICE_SESSION_ID || "",
       cliente: { nombre: d.nombre, telefono: d.telefono, email: d.email, direccion: d.direccion, referencia: d.referencia }, huespedes: d.huespedes.slice(0, b.perros) }) });
     guardarEnlace({ id: r.id, token: r.token, codigo: r.codigo });
     const cl = clienteActual();

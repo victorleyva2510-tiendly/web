@@ -15,8 +15,10 @@ async function llamar(ruta, opciones = {}) {
   return datos;
 }
 
-export function crearPreferencia(cuerpo, idempotencia) {
-  return llamar("/checkout/preferences", { method: "POST", body: JSON.stringify(cuerpo), headers: { "X-Idempotency-Key": idempotencia } });
+// dispositivo: el Device ID que genera el script de seguridad de Mercado Pago en el navegador del cliente (ayuda a que el antifraude no rechace pagos legítimos)
+export function crearPreferencia(cuerpo, idempotencia, dispositivo) {
+  const extra = dispositivo ? { "X-meli-session-id": dispositivo } : {};
+  return llamar("/checkout/preferences", { method: "POST", body: JSON.stringify(cuerpo), headers: { "X-Idempotency-Key": idempotencia, ...extra } });
 }
 export function obtenerPago(id) {
   return llamar("/v1/payments/" + encodeURIComponent(id));
