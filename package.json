@@ -1,0 +1,10 @@
+{
+  "name": "hospedoggy-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "echo \"Sin paso de compilacion: la web esta lista en public/\""
+  }
+}
