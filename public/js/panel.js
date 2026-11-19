@@ -197,7 +197,7 @@ function vistaLogin() {
   return '<form class="tarjeta pila login" id="form-login"><div><p class="etiqueta">' + (esCuidador ? "Panel del cuidador" : "Panel de Hospedoggy") + '</p><h2 style="margin-top:6px">Ingresa a tu cuenta</h2></div>' +
     campoTexto("l-usuario", "Usuario", "", "text", "") + campoTexto("l-clave", "Contraseña", "", "password", "") +
     '<p class="error" id="error-login" role="alert"></p><button class="boton boton-sol" type="submit">Ingresar</button>' +
-    (esCuidador ? '<p class="tenue">Las cuentas de cuidador las crea Hospedoggy después de la visita de verificación. Si quieres ser cuidador, escríbenos por Instagram a @hospedoggy. ¿Olvidaste tu contraseña? Pídele a Hospedoggy una temporal.</p>' : "") + "</form>";
+    (esCuidador ? '<p class="tenue">Las cuentas de cuidador las crea Hospedoggy después de la visita de verificación. Si quieres ser cuidador, escríbenos a ventas@hospedoggy.com o por Instagram a @hospedoggy. ¿Olvidaste tu contraseña? Pídele a Hospedoggy una temporal.</p>' : "") + "</form>";
 }
 function formClave(obligatorio) {
   const c = ROL === "cuidador" && S ? S.cuidadores[0] : null;

@@ -25,7 +25,7 @@ Este repositorio es público, así que aquí no hay claves, tarifas de cuidadore
 | `MP_WEBHOOK_SECRET` | Clave secreta de las notificaciones (Webhooks) de Mercado Pago |
 | `RESEND_API_KEY` | API key de Resend (`re_...`) |
 | `EMAIL_ADMIN` | Tu correo: te llega cada reserva, cancelación o alerta |
-| `EMAIL_REMITENTE` | Opcional. Cuando verifiques tu dominio: `Hospedoggy <reservas@hospedoggy.pe>` |
-| `SITIO_URL` | Opcional. Cuando tengas dominio: `https://hospedoggy.pe` |
+| `EMAIL_REMITENTE` | Opcional. Cuando verifiques tu dominio: `Hospedoggy <ventas@hospedoggy.com>` |
+| `SITIO_URL` | Opcional. Cuando tengas dominio: `https://hospedoggy.com` |
 
 Mientras `EMAIL_REMITENTE` no esté puesto, Resend solo deja enviar a tu propio correo. Por eso todos los correos (cliente y cuidador) te llegan a ti con "[Reenviar a ...]" en el asunto.

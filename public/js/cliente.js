@@ -54,8 +54,32 @@ const textoCancelacion = () => politicaCancelacion() === "siete" ? "Puedes cance
 
 /* ---------- Piezas visuales (las mismas del prototipo) ---------- */
 function rangoNoche(q) { const ps = q.detalle.map((d) => d.precio); const min = Math.min(...ps), max = Math.max(...ps); return min === max ? soles(min) : soles(min) + " a " + soles(max); }
-const portada = (c, etiqueta) => '<div class="casa-foto">' + (c.fotos.length ? '<img src="' + esc(c.fotos[0].src) + '" alt="' + esc(c.fotos[0].leyenda || c.nombrePublico) + '" onerror="this.remove()">' : "") +
-  '<div class="foto-vacia" style="z-index:0">' + ILUSTRACION_CASA + "</div><span>" + esc(etiqueta) + "</span>" + (c.fotos.length > 1 ? '<span class="contador">' + plural(c.fotos.length, "foto", "fotos") + "</span>" : "") + "</div>";
+function portada(c, etiqueta) {
+  const fs = c.fotos || [], n = fs.length;
+  const pista = n ? '<div class="carrusel" data-carrusel tabindex="0" role="group" aria-roledescription="carrusel" aria-label="Fotos de ' + esc(c.nombrePublico) + '">' +
+    fs.map((f, i) => '<img src="' + esc(f.src) + '" alt="' + esc(f.leyenda || c.nombrePublico) + '"' + (i ? ' loading="lazy"' : "") + ' onerror="fotoRota(this)">').join("") + "</div>"
+    : '<div class="foto-vacia">' + ILUSTRACION_CASA + "</div>";
+  const nav = n > 1 ? '<button type="button" class="carrusel-nav izq" data-accion="carrusel" data-paso="-1" aria-label="Foto anterior">‹</button><button type="button" class="carrusel-nav der" data-accion="carrusel" data-paso="1" aria-label="Foto siguiente">›</button>' +
+    '<span class="contador" aria-live="polite">1 / ' + n + '</span><span class="puntos" aria-hidden="true">' + fs.map((_, i) => "<i" + (i ? "" : ' class="activo"') + "></i>").join("") + "</span>" : "";
+  return '<div class="casa-foto">' + pista + "<span>" + esc(etiqueta) + "</span>" + nav + "</div>";
+}
+function moverCarrusel(caja, paso) {
+  const p = caja && caja.querySelector("[data-carrusel]"); if (!p) return;
+  const n = p.children.length, i = p._i ?? Math.round(p.scrollLeft / p.clientWidth), j = (i + paso + n) % n;
+  p._i = j; marcarCarrusel(p, j);
+  p.scrollTo({ left: j * p.clientWidth, behavior: "smooth" });
+}
+function marcarCarrusel(p, fijo) {
+  const caja = p.closest(".casa-foto"), n = p.children.length, i = fijo ?? Math.min(n - 1, Math.round(p.scrollLeft / p.clientWidth));
+  const cont = caja.querySelector(".contador"); if (cont) cont.textContent = (i + 1) + " / " + n;
+  caja.querySelectorAll(".puntos i").forEach((d, k) => d.classList.toggle("activo", k === i));
+}
+document.addEventListener("scroll", (e) => {
+  const p = e.target; if (!(p instanceof Element) || !p.matches("[data-carrusel]")) return;
+  clearTimeout(p._t);
+  p._t = setTimeout(() => { p._i = undefined; marcarCarrusel(p); }, 140);
+  if (p._i === undefined) marcarCarrusel(p);
+}, true);
 function rasgosCasa(c) { const k = c.casa; return [k.jardin ? "Jardín cercado" : "", k.todoElDia ? "Alguien todo el día" : "", k.perrosResidentes ? "Tiene perros propios" : "Sin perros propios", k.ninos ? "Hay niños" : "", k.fumadores ? "" : "No se fuma"].filter(Boolean); }
 const reputacion = (st) => st.resenas ? "★ " + st.nota.toFixed(1) + " · " + plural(st.resenas, "reseña", "reseñas") : "Nuevo en Hospedoggy";
 const busquedaValida = (b) => b.ingreso && b.salida && b.salida > b.ingreso && b.ingreso >= hoyISO();
@@ -162,8 +186,8 @@ function seccionesConfianza() {
     '<section class="cierre-cli"><div><h2>Los cupos de Navidad son pocos.</h2><p>Cada casa recibe pocos perros para atenderlos bien. Si ya tienes fechas, revisa quién tiene cupo hoy.</p></div><button class="boton boton-sol" data-accion="ir-cotizador">Cotizar mi estadía</button></section>';
 }
 function pieCliente() {
-  return '<footer class="pie-cli"><div><b class="pie-marca">Hospedoggy</b><p>Hospedaje para perros en casas de cuidadores verificados. Lima, Perú.</p><p class="redes-cli"><a href="https://www.instagram.com/hospedoggy/">Instagram</a><a href="https://www.tiktok.com/@hospedoggy">TikTok</a><a href="https://www.facebook.com/hospedoggy">Facebook</a></p><p>© 2026 Hospedoggy</p></div>' +
-    "<div><b>Aviso de privacidad</b><p>Usamos tus datos (nombre, celular, correo, dirección y la información de tu perro) solo para gestionar tu reserva, coordinar el recojo y enviarte los reportes. Solo los compartimos con el cuidador que atiende tu reserva y con Mercado Pago para procesar el pago. Puedes pedir que los corrijamos o eliminemos escribiéndonos por Instagram a @hospedoggy. Tratamos tus datos conforme a la Ley N.° 29733, Ley de Protección de Datos Personales.</p></div></footer>";
+  return '<footer class="pie-cli"><div><b class="pie-marca">Hospedoggy</b><p>Hospedaje para perros en casas de cuidadores verificados. Lima, Perú.</p><p class="redes-cli"><a href="https://www.instagram.com/hospedoggy/">Instagram</a><a href="https://www.tiktok.com/@hospedoggy">TikTok</a><a href="https://www.facebook.com/hospedoggy">Facebook</a></p><p><a href="mailto:ventas@hospedoggy.com">ventas@hospedoggy.com</a></p><p>© 2026 Hospedoggy</p></div>' +
+    "<div><b>Aviso de privacidad</b><p>Usamos tus datos (nombre, celular, correo, dirección y la información de tu perro) solo para gestionar tu reserva, coordinar el recojo y enviarte los reportes. Solo los compartimos con el cuidador que atiende tu reserva y con Mercado Pago para procesar el pago. Puedes pedir que los corrijamos o eliminemos escribiéndonos a ventas@hospedoggy.com o por Instagram a @hospedoggy. Tratamos tus datos conforme a la Ley N.° 29733, Ley de Protección de Datos Personales.</p></div></footer>";
 }
 
 /* ---------- Ficha de la casa ---------- */
@@ -526,6 +550,7 @@ document.addEventListener("click", async (e) => {
   if (a === "volver") { ui.vista = "inicio"; ui.casa = null; render(); requestAnimationFrame(() => { const r = $("#resultados"); if (r) r.scrollIntoView({ block: "start" }); }); buscar(); }
   if (a === "reintentar") buscar();
   if (a === "pagar") pagar(el);
+  if (a === "carrusel") { moverCarrusel(el.closest(".casa-foto"), Number(el.dataset.paso)); return; }
   if (a === "ver-foto") abrirVisor(Number(el.dataset.i));
   if (a === "visor-mover") abrirVisor((ui.visor + Number(el.dataset.paso) + ui.casa.fotos.length) % ui.casa.fotos.length);
   if (a === "cerrar-capa") cerrarCapa();
