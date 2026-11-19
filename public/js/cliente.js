@@ -134,11 +134,86 @@ function paseBusqueda() {
     '<div class="sello" aria-hidden="true">Cuidador<br>verificado</div></div><div class="pase-talon"><div class="talon-hora"><small>Reportes</small><strong>CON<br>FOTOS</strong></div><div class="barras" aria-hidden="true"></div></div></div>' +
     '<p class="pase-nota">Se actualiza al cambiar fechas. Incluye recojo y regreso a tu casa.</p>';
 }
-const campoFecha = (id, rot, v) => '<div class="campo"><label for="' + id + '">' + rot + '</label><input type="date" id="' + id + '" value="' + esc(v) + '" min="' + hoyISO() + '"></div>';
+/* ---------- Selector de fechas tipo Airbnb: eliges ingreso y pasa solo a la salida ---------- */
+const MESES_LARGOS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
+const DIAS_LARGOS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const fLarga = (iso) => { const f = aFecha(iso); return DIAS_LARGOS[f.getUTCDay()] + " " + f.getUTCDate() + " de " + MESES_LARGOS[f.getUTCMonth()] + " de " + f.getUTCFullYear(); };
+const botonFecha = (p, fase, rot, v) => '<button type="button" class="fecha-btn" id="' + p + "-" + fase + '-btn" data-accion="fc-abrir" data-prefijo="' + p + '" data-fase="' + fase + '" aria-label="' + rot + ": " + (v ? fLarga(v) : "sin elegir") + '. Cambiar fechas"><small>' + rot + "</small><strong>" + (v ? fCorta(v) : "Agregar fecha") + "</strong></button>";
+const campoFechas = (p, ing, sal) => '<div class="campo campo-fechas"><span class="rotulo" id="' + p + '-fechas-rot">Fechas</span><div class="fechas-par" role="group" aria-labelledby="' + p + '-fechas-rot">' +
+  botonFecha(p, "ingreso", "Ingreso", ing) + botonFecha(p, "salida", "Salida", sal) + '</div><input type="hidden" id="' + p + '-ingreso" value="' + esc(ing || "") + '"><input type="hidden" id="' + p + '-salida" value="' + esc(sal || "") + '"></div>';
+function abrirCalendario(prefijo, fase) {
+  const ini = $("#" + prefijo + "-ingreso").value, fin = $("#" + prefijo + "-salida").value;
+  ui.cal = { prefijo, fase: fase === "salida" && ini ? "salida" : "ingreso", ini, fin, volver: document.activeElement };
+  pintarCalendario(true);
+}
+function celdasMes(y, m) {
+  const c = ui.cal, hoy = hoyISO(), primero = new Date(Date.UTC(y, m, 1)), dias = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const vacios = (primero.getUTCDay() + 6) % 7;
+  let h = '<div class="fc-mes"><h4>' + MESES_LARGOS[m] + " " + y + '</h4><div class="fc-sem" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="fc-dias">';
+  for (let i = 0; i < vacios; i++) h += '<span class="fc-celda vacia"></span>';
+  for (let d = 1; d <= dias; d++) {
+    const iso = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    const pasado = iso < hoy, esIni = iso === c.ini, esFin = iso === c.fin, rango = c.ini && c.fin && iso > c.ini && iso < c.fin;
+    const cls = ["fc-celda", esIni ? "ini" : "", esFin ? "fin" : "", rango ? "en-rango" : "", esIni && c.fin ? "con-fin" : "", iso === hoy ? "hoy" : ""].filter(Boolean).join(" ");
+    h += '<span class="' + cls + '" data-dia="' + iso + '"><button type="button" class="fc-dia" data-accion="fc-dia" data-dia="' + iso + '"' + (pasado ? " disabled" : "") + (esIni || esFin ? ' aria-pressed="true"' : "") + ' aria-label="' + fLarga(iso) + (esIni ? ", ingreso" : esFin ? ", salida" : "") + '">' + d + "</button></span>";
+  }
+  return h + "</div></div>";
+}
+function pintarCalendario(primeraVez) {
+  const c = ui.cal; if (!c) return;
+  const base = aFecha(hoyISO()); let meses = "";
+  for (let i = 0; i < 12; i++) { const f = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + i, 1)); meses += celdasMes(f.getUTCFullYear(), f.getUTCMonth()); }
+  const n = c.ini && c.fin ? difDias(c.ini, c.fin) : 0;
+  const pista = c.fase === "ingreso" ? "Elige el día en que lo dejas" : "Ahora elige el día en que lo recoges";
+  const scroll = !primeraVez && $("#fc-meses") ? $("#fc-meses").scrollTop : null;
+  $("#capa").innerHTML = '<div class="velo fc-velo" data-accion="fc-fuera"><div class="fc-caja" role="dialog" aria-modal="true" aria-labelledby="fc-titulo">' +
+    '<div class="fc-cabeza"><div><h3 id="fc-titulo">¿Cuándo viajas?</h3><p class="tenue" aria-live="polite">' + pista + '</p></div><button type="button" class="boton boton-chico" data-accion="fc-cerrar" aria-label="Cerrar calendario">Cerrar</button></div>' +
+    '<div class="fc-fases"><button type="button" class="fc-fase' + (c.fase === "ingreso" ? " activa" : "") + '" data-accion="fc-fase" data-fase="ingreso"><small>Ingreso</small><strong>' + (c.ini ? fCorta(c.ini) : "Elegir") + '</strong></button><button type="button" class="fc-fase' + (c.fase === "salida" ? " activa" : "") + '" data-accion="fc-fase" data-fase="salida"' + (c.ini ? "" : " disabled") + '><small>Salida</small><strong>' + (c.fin ? fCorta(c.fin) : "Elegir") + "</strong></button></div>" +
+    '<div class="fc-meses" id="fc-meses">' + meses + "</div>" +
+    '<div class="fc-pie"><span class="fc-resumen">' + (n > 0 ? plural(n, "noche", "noches") : "&nbsp;") + '</span><div class="fila" style="gap:8px"><button type="button" class="boton boton-chico" data-accion="fc-borrar"' + (c.ini ? "" : " disabled") + '>Borrar</button><button type="button" class="boton boton-sol" data-accion="fc-listo"' + (c.ini && c.fin ? "" : " disabled") + ">Listo</button></div></div></div></div>";
+  const caja = $("#fc-meses");
+  if (scroll !== null) caja.scrollTop = scroll;
+  else {
+    const objetivo = (c.fase === "salida" && c.ini) || c.ini || hoyISO();
+    const celda = caja.querySelector('[data-dia="' + objetivo.slice(0, 8) + '01"]');
+    if (celda) caja.scrollTop = Math.max(0, celda.closest(".fc-mes").offsetTop - 4);
+  }
+  const foco = caja.querySelector('.fc-dia[data-dia="' + (c.fase === "salida" ? c.fin || c.ini : c.ini) + '"]:not([disabled])') || caja.querySelector(".fc-dia:not([disabled])");
+  if (foco) foco.focus({ preventScroll: true });
+}
+function elegirDia(iso) {
+  const c = ui.cal; if (!c || iso < hoyISO()) return;
+  if (c.fase === "ingreso" || !c.ini || iso <= c.ini) {
+    c.ini = iso; c.fin = ""; c.fase = "salida"; pintarCalendario(false); return;
+  }
+  c.fin = iso; pintarCalendario(false);
+  setTimeout(() => aplicarCalendario(), 260);
+}
+function aplicarCalendario() {
+  const c = ui.cal; if (!c || !c.ini || !c.fin) return;
+  const p = c.prefijo, i = $("#" + p + "-ingreso"), s = $("#" + p + "-salida");
+  cerrarCalendario();
+  if (!i || !s) return;
+  i.value = c.ini; s.value = c.fin;
+  [["ingreso", "Ingreso", c.ini], ["salida", "Salida", c.fin]].forEach(([f, rot, v]) => { const btn = $("#" + p + "-" + f + "-btn"); if (btn) { btn.querySelector("strong").textContent = fCorta(v); btn.setAttribute("aria-label", rot + ": " + fLarga(v) + ". Cambiar fechas"); } });
+  s.dispatchEvent(new Event("change", { bubbles: true }));
+  const b = $("#" + p + "-salida-btn"); if (b) b.focus({ preventScroll: true });
+}
+function cerrarCalendario() {
+  const c = ui.cal; ui.cal = null; cerrarCapa();
+  if (c && c.volver && document.contains(c.volver)) c.volver.focus({ preventScroll: true });
+}
+// Vista previa del rango al pasar el mouse (computadora)
+document.addEventListener("mouseover", (e) => {
+  const c = ui.cal; if (!c || c.fase !== "salida" || !c.ini) return;
+  const d = e.target.closest(".fc-celda[data-dia]"); if (!d) return;
+  const hasta = d.dataset.dia;
+  document.querySelectorAll(".fc-celda[data-dia]").forEach((x) => x.classList.toggle("previo", !c.fin && hasta > c.ini && x.dataset.dia > c.ini && x.dataset.dia <= hasta));
+});
 const campoTexto = (id, rot, v, tipo, ph) => '<div class="campo"><label for="' + id + '">' + rot + '</label><input type="' + tipo + '" id="' + id + '" value="' + esc(v || "") + '" placeholder="' + esc(ph) + '"></div>';
 function formularioBusqueda(grande) {
   const b = ui.busqueda;
-  return '<form class="tarjeta buscador' + (grande ? " buscador-portada" : "") + '" id="form-busqueda">' + campoFecha("b-ingreso", "Ingreso", b.ingreso) + campoFecha("b-salida", "Salida", b.salida) +
+  return '<form class="tarjeta buscador' + (grande ? " buscador-portada" : "") + '" id="form-busqueda">' + campoFechas("b", b.ingreso, b.salida) +
     '<div class="campo"><label for="b-perros">Perros</label><select id="b-perros">' + Array.from({ length: ui.reglas.maxPerros }, (_, i) => i + 1).map((n) => '<option value="' + n + '"' + (b.perros === n ? " selected" : "") + ">" + plural(n, "perro", "perros") + "</option>").join("") + "</select></div>" +
     '<div class="campo"><label for="b-tamano">Tamaño</label><select id="b-tamano"><option value="todos">Cualquiera</option>' + ["pequeño", "mediano", "grande"].map((t) => '<option value="' + t + '"' + (b.tamano === t ? " selected" : "") + ">" + t.charAt(0).toUpperCase() + t.slice(1) + "</option>").join("") + "</select></div>" +
     '<button class="boton boton-sol" type="submit">' + (grande ? "Ver precios y reservar ↓" : "Buscar") + "</button></form>";
@@ -264,7 +339,7 @@ function resumenEstadia() {
     '<div><div class="precio precio-total">' + soles(q.total) + '</div><p class="tenue">' + fCorta(b.ingreso) + " → " + fCorta(b.salida) + " · " + plural(q.noches, "noche", "noches") + " · " + rangoNoche(q) + " por noche · todo incluido</p></div>" +
     '<button class="boton boton-sol boton-grande" data-accion="pagar"' + (l >= b.perros ? "" : " disabled") + ">Pagar " + soles(q.total) + " con Mercado Pago</button>" +
     '<ul class="garantias"><li>Pagas con Yape o tarjeta dentro de Mercado Pago.</li><li>El cuidador recibe tu reserva apenas se aprueba.</li><li>Reportes con fotos a las ' + esc(c.horaReporte) + ".</li><li>Sin adelantos ni saldos después.</li></ul>" +
-    '<details class="cambiar"' + (l >= b.perros ? "" : " open") + '><summary>Cambiar fechas o perros</summary><div class="cot-fechas">' + campoFecha("q-ingreso", "Ingreso", b.ingreso) + campoFecha("q-salida", "Salida", b.salida) + '<div class="campo"><label for="q-perros">Perros</label><select id="q-perros">' + opPerros + "</select></div></div></details>" +
+    '<details class="cambiar"' + (l >= b.perros ? "" : " open") + '><summary>Cambiar fechas o perros</summary><div class="cot-fechas">' + campoFechas("q", b.ingreso, b.salida) + '<div class="campo"><label for="q-perros">Perros</label><select id="q-perros">' + opPerros + "</select></div></div></details>" +
     '<div class="desglose">' + q.detalle.map((x) => "<div><span>" + plural(x.noches, "noche", "noches") + (x.alta ? " de temporada alta" : "") + " × " + soles(x.precio) + "</span><span>" + soles(x.noches * x.precio) + "</span></div>").join("") +
     (q.descuento ? "<div><span>Descuento por estadía larga (" + q.larga.pct + "%)</span><span>−" + soles(q.descuento) + "</span></div>" : "") +
     "<div><span>Recojo y regreso" + (q.regalo ? " (regalo de primera estadía)" : "") + "</span><span>" + soles(q.movPublico) + "</span></div>" +
@@ -549,6 +624,13 @@ document.addEventListener("click", async (e) => {
   const el = e.target.closest("[data-accion]");
   if (!el || el.tagName === "INPUT") return;
   const a = el.dataset.accion;
+  if (a === "fc-fuera") { if (e.target === el) cerrarCalendario(); return; }
+  if (a === "fc-abrir") { abrirCalendario(el.dataset.prefijo, el.dataset.fase); return; }
+  if (a === "fc-dia") { elegirDia(el.dataset.dia); return; }
+  if (a === "fc-fase") { if (ui.cal) { ui.cal.fase = el.dataset.fase; pintarCalendario(false); } return; }
+  if (a === "fc-borrar") { if (ui.cal) { ui.cal.ini = ""; ui.cal.fin = ""; ui.cal.fase = "ingreso"; pintarCalendario(false); } return; }
+  if (a === "fc-listo") { aplicarCalendario(); return; }
+  if (a === "fc-cerrar") { cerrarCalendario(); return; }
   if (a === "ver-casa") { ui.casaId = el.dataset.id; ui.casa = null; ui.formReserva = null; ui.vista = "casa"; render(); window.scrollTo(0, 0); cargarCasa(false); }
   if (a === "volver") { ui.vista = "inicio"; ui.casa = null; render(); requestAnimationFrame(() => { const r = $("#resultados"); if (r) r.scrollIntoView({ block: "start" }); }); buscar(); }
   if (a === "reintentar") buscar();
@@ -560,7 +642,7 @@ document.addEventListener("click", async (e) => {
   if (a === "abrir-cuenta") abrirCuenta();
   if (a === "salir-cliente") { guardarLocal("hospedoggy-cliente", null); ui.mias = null; ui.formReserva = null; ui.aviso = "Saliste de tu cuenta."; render(); if (ui.vista === "inicio") buscar(); }
   if (a === "ir-mis-reservas") { const m = $("#mis-reservas"); if (m) m.scrollIntoView({ behavior: "smooth" }); }
-  if (a === "ir-cotizador") { window.scrollTo({ top: 0, behavior: "smooth" }); const i = $("#b-ingreso"); if (i) i.focus({ preventScroll: true }); }
+  if (a === "ir-cotizador") { window.scrollTo({ top: 0, behavior: "smooth" }); const i = $("#b-ingreso-btn"); if (i) i.focus({ preventScroll: true }); }
   if (a === "abrir-reserva") { const x = enlaces().find((y) => y.id === el.dataset.id); if (x) { history.pushState(null, "", "?" + qs({ reserva: x.id, t: x.token })); abrirReserva(x.id, x.token); } }
   if (a === "nueva-busqueda") { history.pushState(null, "", location.pathname); ui.vista = "inicio"; ui.reserva = null; render(); window.scrollTo(0, 0); buscar(); }
   if (a === "reintentar-pago") { history.pushState(null, "", location.pathname); ui.busqueda = Object.assign({}, ui.busqueda, { ingreso: ui.reserva.ingreso, salida: ui.reserva.salida, perros: ui.reserva.perros }); ui.casaId = el.dataset.id; ui.vista = "casa"; ui.casa = null; ui.reserva = null; render(); cargarCasa(false); }
@@ -646,6 +728,17 @@ document.addEventListener("submit", async (e) => {
   }
 });
 document.addEventListener("keydown", (e) => {
+  if (ui.cal) {
+    if (e.key === "Escape") { cerrarCalendario(); return; }
+    const d = e.target.closest && e.target.closest(".fc-dia");
+    const paso = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 }[e.key];
+    if (d && paso) {
+      e.preventDefault();
+      const sig = $('.fc-dia[data-dia="' + sumarDias(d.dataset.dia, paso) + '"]');
+      if (sig && !sig.disabled) { sig.focus(); sig.scrollIntoView({ block: "nearest" }); }
+    }
+    return;
+  }
   if (ui.visor !== null && ui.casa) {
     if (e.key === "Escape") cerrarCapa();
     if (e.key === "ArrowRight") abrirVisor((ui.visor + 1) % ui.casa.fotos.length);
