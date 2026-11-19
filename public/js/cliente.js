@@ -186,7 +186,7 @@ function seccionesConfianza() {
     '<section class="cierre-cli"><div><h2>Los cupos de Navidad son pocos.</h2><p>Cada casa recibe pocos perros para atenderlos bien. Si ya tienes fechas, revisa quién tiene cupo hoy.</p></div><button class="boton boton-sol" data-accion="ir-cotizador">Cotizar mi estadía</button></section>';
 }
 function pieCliente() {
-  return '<footer class="pie-cli"><div><b class="pie-marca">Hospedoggy</b><p>Hospedaje para perros en casas de cuidadores verificados. Lima, Perú.</p><p class="redes-cli"><a href="https://www.instagram.com/hospedoggy/">Instagram</a><a href="https://www.tiktok.com/@hospedoggy">TikTok</a><a href="https://www.facebook.com/hospedoggy">Facebook</a></p><p><a href="mailto:ventas@hospedoggy.com">ventas@hospedoggy.com</a></p><p>© 2026 Hospedoggy</p></div>' +
+  return '<footer class="pie-cli"><div><b class="pie-marca">Hospedoggy</b><p>Hospedaje para perros en casas de cuidadores verificados. Lima, Perú.</p><p class="redes-cli"><a href="https://www.instagram.com/hospedoggy/">Instagram</a><a href="https://www.tiktok.com/@hospedoggy_peru">TikTok</a></p><p><a href="mailto:ventas@hospedoggy.com">ventas@hospedoggy.com</a></p><p>© 2026 Hospedoggy</p></div>' +
     "<div><b>Aviso de privacidad</b><p>Usamos tus datos (nombre, celular, correo, dirección y la información de tu perro) solo para gestionar tu reserva, coordinar el recojo y enviarte los reportes. Solo los compartimos con el cuidador que atiende tu reserva y con Mercado Pago para procesar el pago. Puedes pedir que los corrijamos o eliminemos escribiéndonos a ventas@hospedoggy.com o por Instagram a @hospedoggy. Tratamos tus datos conforme a la Ley N.° 29733, Ley de Protección de Datos Personales.</p></div></footer>";
 }
 
